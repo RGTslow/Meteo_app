@@ -1,5 +1,6 @@
 import "./globals.css";
 import Link from "next/link";
+import { Suspense } from "react"; // ⬅️ ajoute ceci
 
 export const metadata = {
   title: "Weather App",
@@ -10,7 +11,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen text-gray-900">
-        {/* Global navigation */}
         <header className="border-b bg-gray-50">
           <nav className="mx-auto max-w-2xl flex gap-3 px-4 py-3 text-sm">
             <Link href="/" className="rounded-lg border px-3 py-1.5 hover:bg-gray-100">Home</Link>
@@ -19,8 +19,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </header>
 
-        {/* Page content */}
-        <main className="mx-auto max-w-2xl p-6">{children}</main>
+        {/* ⬇️ Suspense autour de toutes les pages */}
+        <main className="mx-auto max-w-2xl p-6">
+          <Suspense fallback={<div>Loading…</div>}>
+            {children}
+          </Suspense>
+        </main>
       </body>
     </html>
   );
