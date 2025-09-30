@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-//IMPORTS RELATIFS 
+// ⬇️ IMPORTS RELATIFS (components et lib à la racine)
 import SearchBox from "../components/SearchBox";
 import SuggestionsList from "../components/SuggestionsList";
 import SelectedCityPanel from "../components/SelectedCityPanel";
@@ -12,7 +12,7 @@ import type { City, WeatherData } from "../lib/types";
 import { searchCities } from "../lib/geocoding";
 import { getForecast } from "../lib/forecast";
 
-
+// ---------- localStorage helpers (inline pour éviter l'import manquant) ----------
 const FAVORITES_KEY = "weather_favorites";
 
 function loadFavorites(): City[] {

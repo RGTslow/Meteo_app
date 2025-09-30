@@ -1,7 +1,21 @@
 "use client";
 
-import type { City, WeatherData } from "../lib/types";
+import type { City, WeatherData } from "../lib/types";        // ← mets "@/lib/..." si tu utilises l’alias
 import { weatherCodeToText } from "../lib/weatherCodes";
+
+/** Retourne l'index de l'heure la plus proche de current_weather.time */
+function findNearestHourIndex(hourlyTimes: string[] = [], currentISO?: string) {
+  if (!hourlyTimes.length || !currentISO) return 0;
+  const current = Date.parse(currentISO);
+  if (Number.isNaN(current)) return 0;
+
+  // 1) premier horaire >= maintenant
+  const i = hourlyTimes.findIndex((t) => Date.parse(t) >= current);
+  if (i >= 0) return i;
+
+  // 2) sinon, dernier index (tout est passé)
+  return hourlyTimes.length - 1;
+}
 
 type Props = {
   city: City;
@@ -9,20 +23,6 @@ type Props = {
   loading: boolean;
   error: string | null;
 };
-
-function findNearestHourIndex(hourlyTimes: string[], currentISO: string): number {
-  if (!hourlyTimes?.length) return 0;
-
-  const current = Date.parse(currentISO);
-  if (Number.isNaN(current)) return 0;
-
-  // 1) Premier index avec time >= current
-  const firstFuture = hourlyTimes.findIndex((t) => Date.parse(t) >= current);
-  if (firstFuture >= 0) return firstFuture;
-
-  // 2) Sinon, on prend l’index du timestamp le plus proche (fin de tableau)
-  return hourlyTimes.length - 1;
-}
 
 export default function WeatherSummary({ city, data, loading, error }: Props) {
   if (loading) return <p>Loading weather…</p>;
@@ -34,20 +34,18 @@ export default function WeatherSummary({ city, data, loading, error }: Props) {
   const hourlyCodes = data.hourly?.weathercode ?? [];
   const hourlyHumidity = data.hourly?.relativehumidity_2m ?? [];
 
-  // Trouver un index "proche" de l'heure actuelle
-  const startIdx = findNearestHourIndex(hourlyTimes, data.current_weather.time);
+  // index de départ robuste
+  const startIdx = findNearestHourIndex(hourlyTimes, data.current_weather?.time);
 
-  // Humidité actuelle (si dispo au même index, sinon fallback)
-  let currentHumidity: number | null = null;
-  if (hourlyHumidity.length) {
-    currentHumidity =
-      hourlyHumidity[startIdx] ??
-      hourlyHumidity[Math.min(startIdx, hourlyHumidity.length - 1)] ??
-      hourlyHumidity[0] ??
-      null;
-  }
+  // humidité actuelle avec fallback
+  const currentHumidity =
+    hourlyHumidity[startIdx] ??
+    (hourlyHumidity.length
+      ? hourlyHumidity[Math.min(startIdx, hourlyHumidity.length - 1)]
+      : null) ??
+    null;
 
-  // Prochaines 5 heures (borne max sécurisée)
+  // prochaines 5 heures (bornes sécurisées)
   const endIdx = Math.min(startIdx + 5, hourlyTimes.length);
   const next5Hours = [];
   for (let i = startIdx; i < endIdx; i++) {
@@ -58,30 +56,36 @@ export default function WeatherSummary({ city, data, loading, error }: Props) {
     });
   }
 
-  // 3 prochains jours
-  const next3Days = (data.daily?.time ?? []).slice(0, 3).map((d, i) => ({
-    date: d,
-    tmin: data.daily!.temperature_2m_min[i],
-    tmax: data.daily!.temperature_2m_max[i],
-    code: data.daily!.weathercode[i],
-  }));
+  // 3 prochains jours (si daily dispo)
+  const next3Days =
+    data.daily?.time?.slice(0, 3).map((d, i) => ({
+      date: d,
+      tmin: data.daily!.temperature_2m_min[i],
+      tmax: data.daily!.temperature_2m_max[i],
+      code: data.daily!.weathercode[i],
+    })) ?? [];
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
+      {/* Cartes résumé */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-lg border p-3">
           <div className="text-sm text-gray-500">City</div>
-          <div className="text-lg font-medium">{city.name}, {city.country}</div>
+          <div className="text-lg font-medium">
+            {city.name}, {city.country}
+          </div>
         </div>
         <div className="rounded-lg border p-3">
           <div className="text-sm text-gray-500">Temperature</div>
-          <div className="text-lg font-medium">{data.current_weather.temperature}°C</div>
+          <div className="text-lg font-medium">
+            {data.current_weather.temperature}°C
+          </div>
         </div>
         <div className="rounded-lg border p-3">
           <div className="text-sm text-gray-500">Humidity</div>
           <div className="text-lg font-medium">
-            {currentHumidity ?? "—"}{currentHumidity != null ? "%" : ""}
+            {currentHumidity ?? "—"}
+            {currentHumidity != null ? "%" : ""}
           </div>
         </div>
         <div className="rounded-lg border p-3">
@@ -92,7 +96,7 @@ export default function WeatherSummary({ city, data, loading, error }: Props) {
         </div>
       </div>
 
-      {/* Next 5 hours */}
+      {/* Prochaines 5 heures */}
       <div>
         <h4 className="font-medium mb-2">Next 5 Hours</h4>
         {next5Hours.length === 0 ? (
@@ -127,7 +131,7 @@ export default function WeatherSummary({ city, data, loading, error }: Props) {
         )}
       </div>
 
-      {/* Next 3 days */}
+      {/* Prévision 3 jours */}
       <div>
         <h4 className="font-medium mb-2">3-Day Forecast</h4>
         <div className="grid sm:grid-cols-3 gap-3">
